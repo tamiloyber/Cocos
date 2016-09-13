@@ -1,6 +1,8 @@
 package com.example.a41400475.cocos.model;
 
 import android.util.Log;
+import android.view.MotionEvent;
+import android.widget.Toast;
 
 import org.cocos2d.actions.interval.MoveTo;
 import org.cocos2d.actions.interval.RotateBy;
@@ -15,6 +17,7 @@ import org.cocos2d.opengl.CCGLSurfaceView;
 import org.cocos2d.types.CCPoint;
 import org.cocos2d.types.CCSize;
 
+import java.util.ArrayList;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -28,11 +31,12 @@ public class clsJuego {
     CCSize pantallaDispositivo;
     Sprite naveJugador;
     Sprite imagenFondo;
-    Label tituloJuego;
     Sprite enemigo;
+    ArrayList<Sprite> listaEnemigos;
 
     public clsJuego(CCGLSurfaceView vistaJuego) {
         _vistaJuego = vistaJuego;
+        listaEnemigos = new ArrayList<Sprite>();
     }
 
     public void ComenzarJuego(){
@@ -57,7 +61,6 @@ public class clsJuego {
 
         public CapaFondo(){
             PonerCapaFondo();
-            PonerTitulo();
         }
 
         private void PonerCapaFondo(){
@@ -67,20 +70,12 @@ public class clsJuego {
             super.addChild(imagenFondo);
         }
 
-        private void PonerTitulo(){
-            tituloJuego = Label.label("Mi juego", "Verdana", 30);
-
-            float altoTitulo;
-            altoTitulo = tituloJuego.getHeight();
-
-            tituloJuego.setPosition(pantallaDispositivo.width/2, pantallaDispositivo.height-altoTitulo/2);
-        }
-
     }
 
     class CapaFrente extends Layer {
 
         public CapaFrente(){
+            this.setIsTouchEnabled(true);
             PonerNavePosInicial();
 
             TimerTask tareaPonerEnemigos = new TimerTask() {
@@ -89,9 +84,37 @@ public class clsJuego {
                     PonerEnemigo();
                 }
             };
-
             Timer relojEnemigos = new Timer();
             relojEnemigos.schedule(tareaPonerEnemigos, 0, 1000);
+
+            TimerTask tareaVerificarImpactos = new TimerTask() {
+                @Override
+                public void run() {
+                    DetectarColociones();
+                }
+            };
+            Timer relojImpactos = new Timer();
+            relojImpactos.schedule(tareaVerificarImpactos, 0, 100);
+        }
+
+        @Override
+        public boolean ccTouchesBegan(MotionEvent event){
+            return true;
+        }
+
+        @Override
+        public boolean ccTouchesMoved(MotionEvent event){
+            MoverNave(event.getX(), pantallaDispositivo.getHeight() - event.getY());
+            return true;
+        }
+
+        @Override
+        public boolean ccTouchesEnded(MotionEvent event){
+            return true;
+        }
+
+        void MoverNave(float destinoX, float destinoY){
+            naveJugador.setPosition(destinoX, destinoY);
         }
 
         private void PonerNavePosInicial(){
@@ -119,14 +142,29 @@ public class clsJuego {
             posInicial.x = generadorAzar.nextInt((int) pantallaDispositivo.width - (int) anchoEnemigo) + anchoEnemigo/2;
 
             enemigo.setPosition(posInicial.x, posInicial.y);
-            enemigo.runAction(RotateTo.action(0.01f, 180f));
+            enemigo.runAction(RotateTo.action(0.01f, 360f));
 
             CCPoint posFinal = new CCPoint();
             posFinal.x = posInicial.x;
             posFinal.y = - alturaEnemigo/2;
             enemigo.runAction(MoveTo.action(3, posFinal.x, posFinal.y));
 
+            listaEnemigos.add(enemigo);
             super.addChild(enemigo);
+        }
+
+        void DetectarColociones(){
+            boolean huboColicion = false;
+            for (Sprite enemigo : listaEnemigos){
+                if (InterseccionSprites(naveJugador, enemigo)){
+                    huboColicion = true;
+                }
+            }
+            if (huboColicion){
+                Log.d("Colicion", "Hubo colicion");
+            } else {
+                Log.d("Colicion", "No hubo colicion");
+            }
         }
 
         boolean InterseccionSprites(Sprite sprite1, Sprite sprite2){
